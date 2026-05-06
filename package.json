@@ -1,6 +1,6 @@
 {
   "name": "ag-diffchecker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A local side-by-side diff checker desktop app",
   "main": "main.js",
   "author": "You",
@@ -10,7 +10,8 @@
     "build:win": "electron-builder --win --x64",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux",
-    "release:win": "electron-builder --win --x64 --publish always"
+    "release:win": "electron-builder --win --x64 --publish always",
+    "release:linux": "electron-builder --linux --publish always"
   },
   "dependencies": {
     "electron-updater": "^6.3.0"
@@ -23,7 +24,7 @@
     "appId": "com.yourname.diffchecker",
     "productName": "DiffChecker",
     "directories": {
-      "output": "dist"
+      "output": "C:/builds/ag-diffchecker"
     },
     "publish": {
       "provider": "github",
