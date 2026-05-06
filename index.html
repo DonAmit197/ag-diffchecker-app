@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DiffChecker</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161e;
+    --surface2: #1a1e29;
+    --border: #252a38;
+    --text: #c9d1e0;
+    --text-muted: #5a6480;
+    --accent: #4f8ef7;
+    --accent2: #a78bfa;
+    --add-bg: #0d2818;
+    --add-line: #1a4a2e;
+    --add-text: #4ade80;
+    --add-gutter: #1a5c35;
+    --del-bg: #2a0d0d;
+    --del-line: #4a1a1a;
+    --del-text: #f87171;
+    --del-gutter: #5c1a1a;
+    --mod-bg: #1a1a08;
+    --char-add: #166534;
+    --char-del: #7f1d1d;
+    --mono: 'JetBrains Mono', monospace;
+    --display: 'Syne', sans-serif;
+    --radius: 10px;
+  }
+
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .logo {
+    font-family: var(--display);
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .logo span { color: var(--text-muted); -webkit-text-fill-color: var(--text-muted); }
+
+  .header-controls {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  select:hover { border-color: var(--accent); }
+
+  button {
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 14px;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #3b74db);
+    color: #fff;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    box-shadow: 0 2px 10px rgba(79,142,247,0.35);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(79,142,247,0.45); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-ghost {
+    background: var(--surface2);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--del-text);
+    border: 1px solid var(--del-line);
+  }
+  .btn-danger:hover { background: var(--del-bg); }
+
+  /* ── Stats bar ── */
+  #stats-bar {
+    display: none;
+    align-items: center;
+    gap: 18px;
+    padding: 8px 24px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.75rem;
+    flex-shrink: 0;
+  }
+  #stats-bar.visible { display: flex; }
+  .stat { display: flex; align-items: center; gap: 5px; }
+  .stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-add { background: var(--add-text); }
+  .dot-del { background: var(--del-text); }
+  .dot-eq  { background: var(--text-muted); }
+  .stat-val { font-weight: 600; color: var(--text); }
+
+  /* ── Editor area ── */
+  #editors {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .pane {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-right: 1px solid var(--border);
+  }
+  .pane:last-child { border-right: none; }
+
+  .pane-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .pane-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .label-left  { color: var(--add-text); }
+  .label-right { color: var(--del-text); }
+
+  .pane-filename {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    outline: none;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .pane-filename:focus { border-color: var(--accent); color: var(--text); }
+
+  .pane-actions { display: flex; gap: 5px; }
+
+  textarea {
+    flex: 1;
+    background: var(--surface);
+    color: var(--text);
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.65;
+    padding: 14px 16px;
+    tab-size: 2;
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+  }
+  textarea::placeholder { color: var(--text-muted); }
+  textarea::-webkit-scrollbar { width: 6px; height: 6px; }
+  textarea::-webkit-scrollbar-track { background: transparent; }
+  textarea::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── Diff output ── */
+  #diff-output {
+    display: none;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    flex-direction: row;
+  }
+  #diff-output.visible { display: flex; }
+
+  .diff-pane {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border-right: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.65;
+  }
+  .diff-pane:last-child { border-right: none; }
+  .diff-pane::-webkit-scrollbar { width: 6px; height: 6px; }
+  .diff-pane::-webkit-scrollbar-track { background: transparent; }
+  .diff-pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .diff-line {
+    display: flex;
+    align-items: stretch;
+    min-height: 1.65em;
+  }
+
+  .diff-gutter {
+    width: 52px;
+    min-width: 52px;
+    text-align: right;
+    padding: 0 8px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    user-select: none;
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+
+  .diff-sign {
+    width: 14px;
+    text-align: center;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .diff-content {
+    flex: 1;
+    padding: 0 12px;
+    white-space: pre;
+    overflow-x: visible;
+    word-break: normal;
+  }
+
+  /* Line type styles */
+  .line-add  { background: var(--add-bg); }
+  .line-add .diff-gutter  { background: var(--add-gutter); color: var(--add-text); }
+  .line-add .diff-sign    { color: var(--add-text); }
+  .line-add .diff-content { color: var(--add-text); }
+
+  .line-del  { background: var(--del-bg); }
+  .line-del .diff-gutter  { background: var(--del-gutter); color: var(--del-text); }
+  .line-del .diff-sign    { color: var(--del-text); }
+  .line-del .diff-content { color: var(--del-text); }
+
+  .line-eq .diff-gutter { color: var(--text-muted); }
+  .line-eq .diff-sign   { color: transparent; }
+
+  .line-empty { background: var(--surface2); opacity: 0.5; }
+  .line-empty .diff-gutter { border-right-color: transparent; }
+
+  /* Char-level highlights */
+  .char-add { background: var(--char-add); border-radius: 2px; }
+  .char-del { background: var(--char-del); border-radius: 2px; }
+
+  /* Diff header (hunk) */
+  .diff-hunk {
+    background: var(--surface2);
+    color: var(--accent);
+    padding: 3px 12px 3px 56px;
+    font-size: 0.73rem;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    font-style: italic;
+    user-select: none;
+  }
+
+  /* ── Empty/placeholder state ── */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    pointer-events: none;
+    user-select: none;
+  }
+  .empty-icon { font-size: 2.5rem; opacity: 0.4; }
+
+  /* ── Bottom toolbar ── */
+  #bottom-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 24px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .legend {
+    display: flex;
+    gap: 14px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-swatch {
+    width: 12px; height: 12px; border-radius: 2px;
+  }
+  .sw-add { background: var(--add-text); }
+  .sw-del { background: var(--del-text); }
+  .sw-eq  { background: var(--text-muted); }
+
+  .spacer { flex: 1; }
+
+  /* ── Scrollbar sync indicator ── */
+  .sync-badge {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  /* ── View toggle ── */
+  .view-toggle {
+    display: flex;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    gap: 0;
+  }
+  .view-toggle button {
+    background: transparent;
+    color: var(--text-muted);
+    border: none;
+    border-radius: 0;
+    padding: 5px 12px;
+    font-size: 0.73rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    transition: background 0.15s, color 0.15s;
+  }
+  .view-toggle button:hover { color: var(--text); }
+  .view-toggle button.active {
+    background: var(--accent);
+    color: #fff;
+  }
+  .view-toggle .divider {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  /* collapsed hunk expander row */
+  .diff-hunk-row {
+    display: flex;
+  }
+  .diff-hunk {
+    flex: 1;
+    background: var(--surface2);
+    color: var(--accent);
+    padding: 4px 12px 4px 8px;
+    font-size: 0.73rem;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    font-style: italic;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hunk-expand-btn {
+    background: var(--surface);
+    border: 1px solid var(--border) !important;
+    color: var(--accent) !important;
+    border-radius: 4px !important;
+    padding: 2px 8px !important;
+    font-size: 0.7rem !important;
+    cursor: pointer;
+    font-style: normal;
+    transition: background 0.15s;
+  }
+  .hunk-expand-btn:hover { background: var(--border) !important; }
+
+  /* ── Animations ── */
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .diff-line { animation: fadeIn 0.12s ease both; }
+
+  /* ── Syntax highlighting (hljs) ── */
+  /* hljs.highlight().value injects spans; no wrapper .hljs element, but guard anyway */
+  .diff-content .hljs { background: transparent !important; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="logo">diff<span>//</span>checker</div>
+
+  <div class="header-controls">
+    <select id="lang-select" title="Language hint (cosmetic)">
+      <option value="">Plain Text</option>
+      <option value="js">JavaScript</option>
+      <option value="ts">TypeScript / TSX</option>
+      <option value="py">Python</option>
+      <option value="css">CSS / SCSS</option>
+      <option value="html">HTML</option>
+      <option value="xml">XML / SVG</option>
+      <option value="json">JSON</option>
+      <option value="md">Markdown</option>
+      <option value="sql">SQL</option>
+      <option value="sh">Shell</option>
+    </select>
+    <button class="btn-ghost" id="swap-btn" title="Swap left ↔ right">⇄ Swap</button>
+    <button class="btn-ghost" id="edit-btn" style="display:none">✏ Edit</button>
+    <button class="btn-primary" id="diff-btn">Compare →</button>
+  </div>
+</header>
+
+<!-- Stats bar (shown after diff) -->
+<div id="stats-bar">
+  <div class="stat"><div class="stat-dot dot-add"></div><span class="stat-val" id="stat-add">0</span> added</div>
+  <div class="stat"><div class="stat-dot dot-del"></div><span class="stat-val" id="stat-del">0</span> removed</div>
+  <div class="stat"><div class="stat-dot dot-eq"></div><span class="stat-val" id="stat-eq">0</span> unchanged</div>
+  <div class="spacer"></div>
+  <div class="view-toggle">
+    <button id="toggle-full" class="active" title="Show entire file">≡ Full file</button>
+    <div class="divider"></div>
+    <button id="toggle-changes" title="Show only changed hunks">± Changes only</button>
+  </div>
+</div>
+
+<!-- Main area -->
+<div id="editors" style="flex:1;min-height:0;display:flex;overflow:hidden;flex-direction:column;">
+
+  <!-- Input editors (shown before diff) -->
+  <div id="input-area" style="display:flex;flex:1;min-height:0;overflow:hidden;">
+
+    <!-- Left pane -->
+    <div class="pane">
+      <div class="pane-header">
+        <span class="pane-label label-left">Original</span>
+        <input class="pane-filename" id="left-name" type="text" placeholder="filename (optional)" value="original.txt"/>
+        <div class="pane-actions">
+          <button class="btn-ghost" id="left-upload-btn" title="Load file">📂</button>
+          <input type="file" id="left-file" style="display:none"/>
+          <button class="btn-danger" id="left-clear-btn" title="Clear">✕</button>
+        </div>
+      </div>
+      <textarea id="left-editor" placeholder="Paste or type your original content here…
+Supports any language: JS, TS, CSS, HTML, Python, XML, JSON, Markdown…
+
+You can also load a file with 📂"></textarea>
+    </div>
+
+    <!-- Right pane -->
+    <div class="pane">
+      <div class="pane-header">
+        <span class="pane-label label-right">Modified</span>
+        <input class="pane-filename" id="right-name" type="text" placeholder="filename (optional)" value="modified.txt"/>
+        <div class="pane-actions">
+          <button class="btn-ghost" id="right-upload-btn" title="Load file">📂</button>
+          <input type="file" id="right-file" style="display:none"/>
+          <button class="btn-danger" id="right-clear-btn" title="Clear">✕</button>
+        </div>
+      </div>
+      <textarea id="right-editor" placeholder="Paste or type your modified content here…"></textarea>
+    </div>
+
+  </div>
+
+  <!-- Diff output (shown after compare) -->
+  <div id="diff-output">
+
+    <!-- Left diff pane header -->
+    <div style="flex:1;min-height:0;display:flex;flex-direction:column;border-right:1px solid var(--border);overflow:hidden;">
+      <div class="pane-header">
+        <span class="pane-label label-left">Original</span>
+        <span id="diff-left-name" style="font-size:0.75rem;color:var(--text-muted);"></span>
+      </div>
+      <div class="diff-pane" id="diff-left"></div>
+    </div>
+
+    <!-- Right diff pane header -->
+    <div style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;">
+      <div class="pane-header">
+        <span class="pane-label label-right">Modified</span>
+        <span id="diff-right-name" style="font-size:0.75rem;color:var(--text-muted);"></span>
+      </div>
+      <div class="diff-pane" id="diff-right"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Bottom bar -->
+<div id="bottom-bar">
+  <div class="legend">
+    <div class="legend-item"><div class="legend-swatch sw-add"></div>Added</div>
+    <div class="legend-item"><div class="legend-swatch sw-del"></div>Removed</div>
+    <div class="legend-item"><div class="legend-swatch sw-eq"></div>Unchanged</div>
+  </div>
+  <div class="spacer"></div>
+  <span style="font-size:0.7rem;color:var(--text-muted);">diffchecker · local · no data leaves your browser</span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+// ─── LCS-based line diff ───────────────────────────────────────────────────
+
+function lcsLength(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m+1}, () => new Int32Array(n+1));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j], dp[i][j-1]);
+  return dp;
+}
+
+function backtrack(dp, a, b, i, j, ops) {
+  if (i === 0 && j === 0) return;
+  if (i > 0 && j > 0 && a[i-1] === b[j-1]) {
+    backtrack(dp, a, b, i-1, j-1, ops);
+    ops.push({type: 'eq', val: a[i-1]});
+  } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
+    backtrack(dp, a, b, i, j-1, ops);
+    ops.push({type: 'ins', val: b[j-1]});
+  } else {
+    backtrack(dp, a, b, i-1, j, ops);
+    ops.push({type: 'del', val: a[i-1]});
+  }
+}
+
+function lineDiff(leftText, rightText) {
+  const a = leftText.split('\n');
+  const b = rightText.split('\n');
+  // cap LCS for performance on huge files
+  if (a.length * b.length > 4_000_000) return fastDiff(a, b);
+  const dp = lcsLength(a, b);
+  const ops = [];
+  backtrack(dp, a, b, a.length, b.length, ops);
+  return ops;
+}
+
+function fastDiff(a, b) {
+  // Simple patience-lite fallback: just del all a then add all b (still correct)
+  return [...a.map(v=>({type:'del',val:v})), ...b.map(v=>({type:'ins',val:v}))];
+}
+
+// ─── Char-level diff for changed lines ────────────────────────────────────
+
+function charDiff(oldLine, newLine) {
+  const a = [...oldLine], b = [...newLine];
+  if (a.length * b.length > 40000) return [
+    {type:'del', val: oldLine},
+    {type:'ins', val: newLine}
+  ];
+  const dp = lcsLength(a, b);
+  const ops = [];
+  backtrack(dp, a, b, a.length, b.length, ops);
+  return ops;
+}
+
+function renderCharDiff(ops, side) {
+  // side: 'del' or 'ins'
+  let html = '';
+  for (const op of ops) {
+    const escaped = escapeHtml(op.val);
+    if (op.type === 'eq') { html += escaped; continue; }
+    if (side === 'del' && op.type === 'del') html += `<span class="char-del">${escaped}</span>`;
+    else if (side === 'ins' && op.type === 'ins') html += `<span class="char-add">${escaped}</span>`;
+    else if (op.type === 'eq') html += escaped;
+    // skip the opposite side's changes
+  }
+  return html;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── Syntax highlighting ──────────────────────────────────────────────────
+
+const LANG_MAP = {
+  js:'javascript', ts:'typescript', py:'python', css:'css', html:'html',
+  xml:'xml', json:'json', md:'markdown', sql:'sql', sh:'bash',
+};
+
+function getHljsLang() {
+  return LANG_MAP[document.getElementById('lang-select').value] || null;
+}
+
+function highlightLine(text, lang) {
+  if (!lang || !window.hljs) return escapeHtml(text);
+  try {
+    return hljs.highlight(text, { language: lang, ignoreIllegals: true }).value;
+  } catch (e) {
+    return escapeHtml(text);
+  }
+}
+
+// ─── Group ops into hunks ──────────────────────────────────────────────────
+
+function groupHunks(ops, context = 3) {
+  // assign line numbers
+  let li = 0, ri = 0;
+  const lines = ops.map(op => {
+    const r = {op, li: op.type !== 'ins' ? li : null, ri: op.type !== 'del' ? ri : null};
+    if (op.type !== 'ins') li++;
+    if (op.type !== 'del') ri++;
+    return r;
+  });
+
+  // find changed indices
+  const changed = new Set();
+  lines.forEach((l,i)=>{ if(l.op.type!=='eq') changed.add(i); });
+
+  // expand with context
+  const visible = new Set();
+  for (const i of changed)
+    for (let d=-context; d<=context; d++) { const j=i+d; if(j>=0&&j<lines.length) visible.add(j); }
+
+  // build hunks (groups of consecutive visible lines)
+  const hunks = [];
+  let cur = null;
+  for (let i=0; i<lines.length; i++) {
+    if (!visible.has(i)) { if(cur) { hunks.push(cur); cur=null; } continue; }
+    if (!cur) cur = {start: i, lines: []};
+    cur.lines.push(lines[i]);
+  }
+  if (cur) hunks.push(cur);
+  return hunks;
+}
+
+// ─── Render diff ──────────────────────────────────────────────────────────
+
+function buildDiffLine(gutter, sign, contentHtml, cls) {
+  return `<div class="diff-line ${cls}">
+    <div class="diff-gutter">${gutter}</div>
+    <div class="diff-sign">${sign}</div>
+    <div class="diff-content">${contentHtml}</div>
+  </div>`;
+}
+
+function buildEmptyLine() {
+  return `<div class="diff-line line-empty">
+    <div class="diff-gutter"></div>
+    <div class="diff-sign"></div>
+    <div class="diff-content"> </div>
+  </div>`;
+}
+
+function renderDiff(leftText, rightText) {
+  const ops = lineDiff(leftText, rightText);
+
+  // pair del+ins for char-level diffing
+  // first group consecutive del/ins blocks
+  const grouped = [];
+  let i = 0;
+  while (i < ops.length) {
+    if (ops[i].type === 'del') {
+      const dels = [], inss = [];
+      while (i < ops.length && ops[i].type === 'del') dels.push(ops[i++]);
+      while (i < ops.length && ops[i].type === 'ins') inss.push(ops[i++]);
+      grouped.push({type:'change', dels, inss});
+    } else {
+      grouped.push(ops[i++]);
+    }
+  }
+
+  // flatten back with pairing info
+  const flatOps = [];
+  for (const g of grouped) {
+    if (g.type === 'change') {
+      const pairLen = Math.min(g.dels.length, g.inss.length);
+      for (let k=0; k<pairLen; k++)
+        flatOps.push({type:'pair', del:g.dels[k].val, ins:g.inss[k].val});
+      for (let k=pairLen; k<g.dels.length; k++) flatOps.push({type:'del', val:g.dels[k].val});
+      for (let k=pairLen; k<g.inss.length; k++) flatOps.push({type:'ins', val:g.inss[k].val});
+    } else {
+      flatOps.push(g);
+    }
+  }
+
+  // line number assignment
+  let li=0,ri=0;
+  const rows = flatOps.map(op=>{
+    if(op.type==='pair') { li++; ri++; return {op,li,ri}; }
+    const r={op, li:op.type!=='ins'?li:null, ri:op.type!=='del'?ri:null};
+    if(op.type!=='ins') li++;
+    if(op.type!=='del') ri++;
+    return r;
+  });
+
+  // stats
+  let addCnt=0,delCnt=0,eqCnt=0;
+  for(const r of rows){
+    if(r.op.type==='ins') addCnt++;
+    else if(r.op.type==='del') delCnt++;
+    else if(r.op.type==='pair'){addCnt++;delCnt++;}
+    else eqCnt++;
+  }
+
+  document.getElementById('stat-add').textContent = addCnt;
+  document.getElementById('stat-del').textContent = delCnt;
+  document.getElementById('stat-eq').textContent  = eqCnt;
+
+  // Store rows globally for re-render on toggle
+  window._diffRows = rows;
+  applyDiffView(window._viewMode || 'full');
+}
+
+// ─── Render rows into panels ───────────────────────────────────────────────
+
+const CTX = 4;
+
+function rowToHtml(r) {
+  const lang = getHljsLang();
+  const {op} = r;
+  let lh = '', rh = '';
+  if (op.type === 'eq') {
+    const hl = highlightLine(op.val, lang);
+    lh = buildDiffLine(r.li, ' ', hl, 'line-eq');
+    rh = buildDiffLine(r.ri, ' ', hl, 'line-eq');
+  } else if (op.type === 'ins') {
+    rh = buildDiffLine(r.ri, '+', highlightLine(op.val, lang), 'line-add');
+    lh = buildEmptyLine();
+  } else if (op.type === 'del') {
+    lh = buildDiffLine(r.li, '-', highlightLine(op.val, lang), 'line-del');
+    rh = buildEmptyLine();
+  } else { // pair — char-level diff is more useful here; skip hljs
+    const cdOps = charDiff(op.del, op.ins);
+    lh = buildDiffLine(r.li, '-', renderCharDiff(cdOps,'del'), 'line-del');
+    rh = buildDiffLine(r.ri, '+', renderCharDiff(cdOps,'ins'), 'line-add');
+  }
+  return {lh, rh};
+}
+
+function applyDiffView(mode) {
+  window._viewMode = mode;
+  const rows = window._diffRows;
+  if (!rows) return;
+
+  let leftHtml = '', rightHtml = '';
+
+  if (mode === 'full') {
+    for (const r of rows) {
+      const {lh, rh} = rowToHtml(r);
+      leftHtml += lh; rightHtml += rh;
+    }
+  } else {
+    // Changes-only with GitHub-style collapsible hunks
+    const changedIdx = new Set();
+    rows.forEach((r,i) => { if (r.op.type !== 'eq') changedIdx.add(i); });
+    const visibleIdx = new Set();
+    for (const i of changedIdx)
+      for (let d = -CTX; d <= CTX; d++) { const j=i+d; if(j>=0&&j<rows.length) visibleIdx.add(j); }
+
+    let i = 0;
+    while (i < rows.length) {
+      if (visibleIdx.has(i)) {
+        const {lh, rh} = rowToHtml(rows[i]);
+        leftHtml += lh; rightHtml += rh;
+        i++;
+      } else {
+        let j = i;
+        while (j < rows.length && !visibleIdx.has(j)) j++;
+        const count = j - i;
+        const hunk = `<div class="diff-hunk">
+          <span>↕ ${count} unchanged line${count!==1?'s':''}</span>
+          <button class="hunk-expand-btn" data-start="${i}" data-end="${j}">Expand</button>
+        </div>`;
+        leftHtml  += hunk;
+        rightHtml += hunk;
+        i = j;
+      }
+    }
+  }
+
+  const noChanges = '<div class="empty-state"><div class="empty-icon">✓</div><span>Files are identical</span></div>';
+  document.getElementById('diff-left').innerHTML  = leftHtml  || noChanges;
+  document.getElementById('diff-right').innerHTML = rightHtml || noChanges;
+
+  // Wire expand buttons — clicking any expands the hunk in both panels
+  document.querySelectorAll('.hunk-expand-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const start = parseInt(btn.dataset.start);
+      const end   = parseInt(btn.dataset.end);
+      expandHunk(start, end);
+    });
+  });
+}
+
+function expandHunk(start, end) {
+  // Replace the collapsed hunk with its actual lines in both panels
+  const rows = window._diffRows;
+  const dlEl = document.getElementById('diff-left');
+  const drEl = document.getElementById('diff-right');
+
+  // Find the hunk button in both panels by data-start attribute and replace parent node
+  [dlEl, drEl].forEach(panel => {
+    const btn = panel.querySelector(`.hunk-expand-btn[data-start="${start}"]`);
+    if (!btn) return;
+    const hunkDiv = btn.closest('.diff-hunk');
+    if (!hunkDiv) return;
+
+    let newHtml = '';
+    for (let i = start; i < end; i++) {
+      const {lh, rh} = rowToHtml(rows[i]);
+      newHtml += (panel === dlEl ? lh : rh);
+    }
+
+    const temp = document.createElement('div');
+    temp.innerHTML = newHtml;
+    hunkDiv.replaceWith(...temp.childNodes);
+  });
+}
+
+function setViewMode(mode) {
+  window._viewMode = mode;
+  document.getElementById('toggle-full').classList.toggle('active', mode === 'full');
+  document.getElementById('toggle-changes').classList.toggle('active', mode === 'changes');
+  applyDiffView(mode);
+}
+
+// ─── Scroll sync ──────────────────────────────────────────────────────────
+
+function syncScroll(source, target) {
+  target.scrollTop  = source.scrollTop;
+  target.scrollLeft = source.scrollLeft;
+}
+
+function attachScrollSync() {
+  const dl = document.getElementById('diff-left');
+  const dr = document.getElementById('diff-right');
+  dl.addEventListener('scroll', () => syncScroll(dl,dr));
+  dr.addEventListener('scroll', () => syncScroll(dr,dl));
+}
+
+// ─── UI Wiring ────────────────────────────────────────────────────────────
+
+const leftEditor   = document.getElementById('left-editor');
+const rightEditor  = document.getElementById('right-editor');
+const inputArea    = document.getElementById('input-area');
+const diffOutput   = document.getElementById('diff-output');
+const statsBar     = document.getElementById('stats-bar');
+const diffBtn      = document.getElementById('diff-btn');
+const editBtn      = document.getElementById('edit-btn');
+const swapBtn      = document.getElementById('swap-btn');
+
+diffBtn.addEventListener('click', () => {
+  const l = leftEditor.value, r = rightEditor.value;
+  if (!l.trim() && !r.trim()) { alert('Please enter content in at least one panel.'); return; }
+
+  window._viewMode = 'full'; // reset to full on each new compare
+  setViewMode('full');
+
+  renderDiff(l, r);
+
+  document.getElementById('diff-left-name').textContent  = document.getElementById('left-name').value  || 'original';
+  document.getElementById('diff-right-name').textContent = document.getElementById('right-name').value || 'modified';
+
+  inputArea.style.display   = 'none';
+  diffOutput.style.display  = 'flex';
+  diffOutput.classList.add('visible');
+  statsBar.classList.add('visible');
+  diffBtn.style.display  = 'none';
+  editBtn.style.display  = '';
+  swapBtn.style.display  = 'none';
+});
+
+// Toggle buttons
+document.getElementById('toggle-full').addEventListener('click',    () => setViewMode('full'));
+document.getElementById('toggle-changes').addEventListener('click', () => setViewMode('changes'));
+
+editBtn.addEventListener('click', () => {
+  inputArea.style.display   = 'flex';
+  diffOutput.style.display  = 'none';
+  diffOutput.classList.remove('visible');
+  statsBar.classList.remove('visible');
+  diffBtn.style.display  = '';
+  editBtn.style.display  = 'none';
+  swapBtn.style.display  = '';
+});
+
+swapBtn.addEventListener('click', () => {
+  const tmp = leftEditor.value;
+  leftEditor.value  = rightEditor.value;
+  rightEditor.value = tmp;
+  const tn = document.getElementById('left-name').value;
+  document.getElementById('left-name').value  = document.getElementById('right-name').value;
+  document.getElementById('right-name').value = tn;
+});
+
+// File uploads
+document.getElementById('left-upload-btn').addEventListener('click', () => document.getElementById('left-file').click());
+document.getElementById('right-upload-btn').addEventListener('click', () => document.getElementById('right-file').click());
+
+function loadFile(fileInput, editor, nameInput) {
+  fileInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    nameInput.value = file.name;
+    const reader = new FileReader();
+    reader.onload = ev => { editor.value = ev.target.result; };
+    reader.readAsText(file);
+    fileInput.value='';
+  });
+}
+loadFile(document.getElementById('left-file'),  leftEditor,  document.getElementById('left-name'));
+loadFile(document.getElementById('right-file'), rightEditor, document.getElementById('right-name'));
+
+document.getElementById('left-clear-btn').addEventListener('click',  () => { leftEditor.value='';  document.getElementById('left-name').value='original.txt'; });
+document.getElementById('right-clear-btn').addEventListener('click', () => { rightEditor.value=''; document.getElementById('right-name').value='modified.txt'; });
+
+// Keyboard shortcut: Ctrl+Enter → Compare
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey||e.metaKey) && e.key==='Enter') diffBtn.click();
+});
+
+attachScrollSync();
+
+// Re-render syntax highlighting when language changes without re-running the diff
+document.getElementById('lang-select').addEventListener('change', () => {
+  if (window._diffRows) applyDiffView(window._viewMode || 'full');
+});
+
+// Load demo content
+leftEditor.value = `function greet(name) {
+  const message = "Hello, " + name;
+  console.log(message);
+  return message;
+}
+
+const users = ["Alice", "Bob", "Charlie"];
+
+users.forEach(user => {
+  greet(user);
+});
+
+// TODO: add error handling
+`;
+
+rightEditor.value = `function greet(name, greeting = "Hello") {
+  if (!name) throw new Error("Name is required");
+  const message = \`\${greeting}, \${name}!\`;
+  console.log(message);
+  return message;
+}
+
+const users = ["Alice", "Bob", "Charlie", "Diana"];
+
+users.forEach(user => {
+  greet(user);
+});
+
+// Error handling added above
+console.log("Done greeting all users");
+`;
+</script>
+</body>
+</html>
