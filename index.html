@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>DiffChecker</title>
+<title>AG DiffChecker</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css"/>
+<link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css"/>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -29,6 +29,10 @@
     --mod-bg: #1a1a08;
     --char-add: #166534;
     --char-del: #7f1d1d;
+    --char-mod: #5a4000;
+    --mod-bg: #1f1a00;
+    --mod-text: #fbbf24;
+    --mod-gutter: #3d3200;
     --mono: 'JetBrains Mono', monospace;
     --display: 'Syne', sans-serif;
     --radius: 10px;
@@ -143,6 +147,7 @@
   .stat-dot { width: 8px; height: 8px; border-radius: 50%; }
   .dot-add { background: var(--add-text); }
   .dot-del { background: var(--del-text); }
+  .dot-mod { background: var(--mod-text); }
   .dot-eq  { background: var(--text-muted); }
   .stat-val { font-weight: 600; color: var(--text); }
 
@@ -300,6 +305,13 @@
   /* Char-level highlights */
   .char-add { background: var(--char-add); border-radius: 2px; }
   .char-del { background: var(--char-del); border-radius: 2px; }
+  .char-mod { background: var(--char-mod); border-radius: 2px; }
+
+  /* Modified lines (changed on both sides) */
+  .line-mod { background: var(--mod-bg); }
+  .line-mod .diff-gutter  { background: var(--mod-gutter); color: var(--mod-text); }
+  .line-mod .diff-sign    { color: var(--mod-text); }
+  .line-mod .diff-content { color: var(--mod-text); }
 
   /* Diff header (hunk) */
   .diff-hunk {
@@ -351,6 +363,7 @@
   }
   .sw-add { background: var(--add-text); }
   .sw-del { background: var(--del-text); }
+  .sw-mod { background: var(--mod-text); }
   .sw-eq  { background: var(--text-muted); }
 
   .spacer { flex: 1; }
@@ -428,6 +441,117 @@
   }
   .hunk-expand-btn:hover { background: var(--border) !important; }
 
+  /* ── Search bar ── */
+  #search-bar {
+    display: none;
+    position: fixed;
+    top: 112px;
+    right: 24px;
+    z-index: 200;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  }
+  #search-bar.visible { display: flex; }
+
+  #search-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    outline: none;
+    width: 200px;
+    transition: border-color 0.2s;
+  }
+  #search-input:focus { border-color: var(--accent); }
+
+  #search-count {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    min-width: 80px;
+    text-align: center;
+  }
+  #search-count.no-match { color: var(--del-text); }
+
+  #search-bar button {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+  }
+  #search-bar button:hover { color: var(--text); border-color: var(--accent); }
+
+  /* Search match highlights */
+  .search-match {
+    background: rgba(255, 213, 0, 0.35);
+    border-radius: 2px;
+    outline: 1px solid rgba(255, 180, 0, 0.5);
+  }
+  .search-match-active {
+    background: rgba(255, 140, 0, 0.7);
+    border-radius: 2px;
+    outline: 1px solid var(--accent);
+  }
+
+  /* ── Light theme overrides ── */
+  [data-theme="light"] {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface2: #f0f2f5;
+    --border: #d0d7de;
+    --text: #24292f;
+    --text-muted: #656d76;
+    --accent: #0969da;
+    --accent2: #8250df;
+    --add-bg: #dafbe1;
+    --add-line: #aceebb;
+    --add-text: #116329;
+    --add-gutter: #b7f0c8;
+    --del-bg: #ffebe9;
+    --del-line: #ffd7d5;
+    --del-text: #82071e;
+    --del-gutter: #ffc7c3;
+    --mod-bg: #fff8c5;
+    --mod-text: #9a6700;
+    --mod-gutter: #fef2c0;
+    --char-add: #56d364;
+    --char-del: #f85149;
+    --char-mod: #e3b341;
+  }
+  [data-theme="light"] .hljs { background: transparent !important; }
+
+  /* ── MOD badge ── */
+  .mod-badge {
+    display: inline-block;
+    font-size: 0.5rem;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: var(--mod-text);
+    color: var(--mod-bg);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.5;
+    vertical-align: middle;
+  }
+
+  /* ── Bracket match flash ── */
+  @keyframes bracketFlash {
+    0%, 100% { outline: none; }
+    30%, 70% { outline: 2px solid var(--accent); outline-offset: -1px; }
+  }
+  .bracket-flash { animation: bracketFlash 0.9s ease; }
+
   /* ── Animations ── */
   @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
   .diff-line { animation: fadeIn 0.12s ease both; }
@@ -441,7 +565,7 @@
 
 <!-- Header -->
 <header>
-  <div class="logo">diff<span>//</span>checker</div>
+  <div class="logo">AG diff<span>Checker</span></div>
 
   <div class="header-controls">
     <select id="lang-select" title="Language hint (cosmetic)">
@@ -457,6 +581,7 @@
       <option value="sql">SQL</option>
       <option value="sh">Shell</option>
     </select>
+    <button class="btn-ghost" id="theme-btn" title="Switch theme">☀</button>
     <button class="btn-ghost" id="swap-btn" title="Swap left ↔ right">⇄ Swap</button>
     <button class="btn-ghost" id="edit-btn" style="display:none">✏ Edit</button>
     <button class="btn-primary" id="diff-btn">Compare →</button>
@@ -467,6 +592,7 @@
 <div id="stats-bar">
   <div class="stat"><div class="stat-dot dot-add"></div><span class="stat-val" id="stat-add">0</span> added</div>
   <div class="stat"><div class="stat-dot dot-del"></div><span class="stat-val" id="stat-del">0</span> removed</div>
+  <div class="stat"><div class="stat-dot dot-mod"></div><span class="stat-val" id="stat-mod">0</span> modified</div>
   <div class="stat"><div class="stat-dot dot-eq"></div><span class="stat-val" id="stat-eq">0</span> unchanged</div>
   <div class="spacer"></div>
   <div class="view-toggle">
@@ -540,11 +666,21 @@ You can also load a file with 📂"></textarea>
 
 </div>
 
+<!-- Search bar (floating overlay) -->
+<div id="search-bar">
+  <input id="search-input" type="text" placeholder="Search in diff…" autocomplete="off" spellcheck="false"/>
+  <span id="search-count"></span>
+  <button id="search-prev" title="Previous (Shift+Enter)">∧</button>
+  <button id="search-next" title="Next (Enter)">∨</button>
+  <button id="search-close" title="Close (Esc)">✕</button>
+</div>
+
 <!-- Bottom bar -->
 <div id="bottom-bar">
   <div class="legend">
     <div class="legend-item"><div class="legend-swatch sw-add"></div>Added</div>
     <div class="legend-item"><div class="legend-swatch sw-del"></div>Removed</div>
+    <div class="legend-item"><div class="legend-swatch sw-mod"></div>Modified</div>
     <div class="legend-item"><div class="legend-swatch sw-eq"></div>Unchanged</div>
   </div>
   <div class="spacer"></div>
@@ -608,16 +744,14 @@ function charDiff(oldLine, newLine) {
   return ops;
 }
 
-function renderCharDiff(ops, side) {
-  // side: 'del' or 'ins'
+function renderCharDiff(ops, side, cls = null) {
+  // side: 'del' or 'ins'; cls overrides the highlight class (used for modified lines)
   let html = '';
   for (const op of ops) {
     const escaped = escapeHtml(op.val);
     if (op.type === 'eq') { html += escaped; continue; }
-    if (side === 'del' && op.type === 'del') html += `<span class="char-del">${escaped}</span>`;
-    else if (side === 'ins' && op.type === 'ins') html += `<span class="char-add">${escaped}</span>`;
-    else if (op.type === 'eq') html += escaped;
-    // skip the opposite side's changes
+    if (side === 'del' && op.type === 'del') html += `<span class="${cls || 'char-del'}">${escaped}</span>`;
+    else if (side === 'ins' && op.type === 'ins') html += `<span class="${cls || 'char-add'}">${escaped}</span>`;
   }
   return html;
 }
@@ -689,6 +823,14 @@ function buildDiffLine(gutter, sign, contentHtml, cls) {
   </div>`;
 }
 
+function buildModLine(gutter, contentHtml) {
+  return `<div class="diff-line line-mod">
+    <div class="diff-gutter">${gutter}</div>
+    <div class="diff-sign"><span class="mod-badge">mod</span></div>
+    <div class="diff-content">${contentHtml}</div>
+  </div>`;
+}
+
 function buildEmptyLine() {
   return `<div class="diff-line line-empty">
     <div class="diff-gutter"></div>
@@ -740,16 +882,17 @@ function renderDiff(leftText, rightText) {
   });
 
   // stats
-  let addCnt=0,delCnt=0,eqCnt=0;
+  let addCnt=0,delCnt=0,modCnt=0,eqCnt=0;
   for(const r of rows){
     if(r.op.type==='ins') addCnt++;
     else if(r.op.type==='del') delCnt++;
-    else if(r.op.type==='pair'){addCnt++;delCnt++;}
+    else if(r.op.type==='pair') modCnt++;
     else eqCnt++;
   }
 
   document.getElementById('stat-add').textContent = addCnt;
   document.getElementById('stat-del').textContent = delCnt;
+  document.getElementById('stat-mod').textContent = modCnt;
   document.getElementById('stat-eq').textContent  = eqCnt;
 
   // Store rows globally for re-render on toggle
@@ -775,10 +918,10 @@ function rowToHtml(r) {
   } else if (op.type === 'del') {
     lh = buildDiffLine(r.li, '-', highlightLine(op.val, lang), 'line-del');
     rh = buildEmptyLine();
-  } else { // pair — char-level diff is more useful here; skip hljs
+  } else { // pair — modified line, amber both sides with MOD badge
     const cdOps = charDiff(op.del, op.ins);
-    lh = buildDiffLine(r.li, '-', renderCharDiff(cdOps,'del'), 'line-del');
-    rh = buildDiffLine(r.ri, '+', renderCharDiff(cdOps,'ins'), 'line-add');
+    lh = buildModLine(r.li, renderCharDiff(cdOps, 'del', 'char-mod'));
+    rh = buildModLine(r.ri, renderCharDiff(cdOps, 'ins', 'char-mod'));
   }
   return {lh, rh};
 }
@@ -870,6 +1013,233 @@ function setViewMode(mode) {
   applyDiffView(mode);
 }
 
+// ─── Search / Find in diff ────────────────────────────────────────────────
+
+let searchMatches = [];
+let searchIdx = -1;
+
+function openSearch() {
+  if (!document.getElementById('diff-output').classList.contains('visible')) return;
+  document.getElementById('search-bar').classList.add('visible');
+  document.getElementById('search-input').select();
+  document.getElementById('search-input').focus();
+}
+
+function closeSearch() {
+  document.getElementById('search-bar').classList.remove('visible');
+  clearSearchHighlights();
+  searchMatches = [];
+  searchIdx = -1;
+  document.getElementById('search-count').textContent = '';
+}
+
+function clearSearchHighlights() {
+  document.querySelectorAll('.search-match, .search-match-active').forEach(span => {
+    span.replaceWith(document.createTextNode(span.textContent));
+  });
+  // Normalize all diff-content nodes to merge split text nodes
+  document.querySelectorAll('.diff-content').forEach(el => el.normalize());
+}
+
+function runSearch(query) {
+  clearSearchHighlights();
+  searchMatches = [];
+  searchIdx = -1;
+
+  const countEl = document.getElementById('search-count');
+  if (!query) { countEl.textContent = ''; countEl.classList.remove('no-match'); return; }
+
+  const lq = query.toLowerCase();
+  const panes = [document.getElementById('diff-left'), document.getElementById('diff-right')];
+
+  for (const pane of panes) {
+    const walker = document.createTreeWalker(pane, NodeFilter.SHOW_TEXT, {
+      acceptNode(n) {
+        if (n.parentElement?.closest('.diff-gutter') || n.parentElement?.closest('.diff-sign'))
+          return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+
+    const nodesToProcess = [];
+    let n;
+    while ((n = walker.nextNode())) nodesToProcess.push(n);
+
+    for (const node of nodesToProcess) {
+      const text = node.textContent;
+      const lower = text.toLowerCase();
+      if (!lower.includes(lq)) continue;
+
+      const frags = [];
+      let pos = 0, idx;
+      while ((idx = lower.indexOf(lq, pos)) !== -1) {
+        if (idx > pos) frags.push({ type: 'text', val: text.slice(pos, idx) });
+        frags.push({ type: 'match', val: text.slice(idx, idx + query.length) });
+        pos = idx + query.length;
+      }
+      if (pos < text.length) frags.push({ type: 'text', val: text.slice(pos) });
+
+      const parent = node.parentNode;
+      const ref = node.nextSibling;
+      node.remove();
+      for (const f of frags) {
+        if (f.type === 'text') {
+          parent.insertBefore(document.createTextNode(f.val), ref);
+        } else {
+          const span = document.createElement('span');
+          span.className = 'search-match';
+          span.textContent = f.val;
+          parent.insertBefore(span, ref);
+          searchMatches.push(span);
+        }
+      }
+    }
+  }
+
+  if (searchMatches.length > 0) {
+    searchIdx = 0;
+    activateSearchMatch(0);
+  } else {
+    countEl.textContent = '0 matches';
+    countEl.classList.add('no-match');
+  }
+}
+
+function activateSearchMatch(idx) {
+  searchMatches.forEach(m => m.className = 'search-match');
+  if (!searchMatches.length) return;
+  const m = searchMatches[idx];
+  m.className = 'search-match search-match-active';
+  m.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const countEl = document.getElementById('search-count');
+  countEl.textContent = `${idx + 1} of ${searchMatches.length} matches`;
+  countEl.classList.remove('no-match');
+}
+
+function searchNext() {
+  if (!searchMatches.length) return;
+  searchIdx = (searchIdx + 1) % searchMatches.length;
+  activateSearchMatch(searchIdx);
+}
+
+function searchPrev() {
+  if (!searchMatches.length) return;
+  searchIdx = (searchIdx - 1 + searchMatches.length) % searchMatches.length;
+  activateSearchMatch(searchIdx);
+}
+
+function attachSearch() {
+  const input = document.getElementById('search-input');
+  input.addEventListener('input', () => runSearch(input.value));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.shiftKey ? searchPrev() : searchNext(); e.preventDefault(); }
+    if (e.key === 'Escape') closeSearch();
+  });
+  document.getElementById('search-next').addEventListener('click', searchNext);
+  document.getElementById('search-prev').addEventListener('click', searchPrev);
+  document.getElementById('search-close').addEventListener('click', closeSearch);
+
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); openSearch(); }
+  });
+}
+
+// ─── Bracket matching ─────────────────────────────────────────────────────
+
+const OPEN_BR  = new Set(['{', '(', '[']);
+const CLOSE_BR = new Set(['}', ')', ']']);
+const BR_PAIR  = { '{':'}','(':')','[':']', '}':'{',')':'(',']':'[' };
+
+function getContentTextNodes(pane) {
+  const walker = document.createTreeWalker(pane, NodeFilter.SHOW_TEXT, {
+    acceptNode(n) {
+      return n.parentElement?.closest('.diff-content')
+        ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+    }
+  });
+  const nodes = [];
+  let n;
+  while ((n = walker.nextNode())) nodes.push(n);
+  return nodes;
+}
+
+function handleBracketClick(pane, e) {
+  const sel = window.getSelection();
+  if (!sel?.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  const node = range.startContainer;
+  if (node.nodeType !== Node.TEXT_NODE) return;
+  if (!node.parentElement?.closest('.diff-content')) return;
+
+  const clickOffset = range.startOffset;
+  const ch = node.textContent[clickOffset];
+  if (!ch || (!OPEN_BR.has(ch) && !CLOSE_BR.has(ch))) return;
+
+  const target = BR_PAIR[ch];
+  const isForward = OPEN_BR.has(ch);
+  const nodes = getContentTextNodes(pane);
+
+  // Build flat char map
+  const flat = [];
+  for (const n of nodes)
+    for (let i = 0; i < n.textContent.length; i++)
+      flat.push({ node: n, offset: i });
+
+  // Find global offset of clicked bracket
+  let clickGlobal = -1, acc = 0;
+  for (const n of nodes) {
+    if (n === node) { clickGlobal = acc + clickOffset; break; }
+    acc += n.textContent.length;
+  }
+  if (clickGlobal === -1) return;
+
+  // Scan for matching bracket
+  let depth = 0, matchGlobal = -1;
+  const step = isForward ? 1 : -1;
+  for (let i = clickGlobal; isForward ? i < flat.length : i >= 0; i += step) {
+    const c = flat[i].node.textContent[flat[i].offset];
+    if (c === ch) depth++;
+    else if (c === target) { if (--depth === 0) { matchGlobal = i; break; } }
+  }
+  if (matchGlobal === -1) return;
+
+  // Select the matched bracket using browser selection
+  const m = flat[matchGlobal];
+  const matchRange = document.createRange();
+  matchRange.setStart(m.node, m.offset);
+  matchRange.setEnd(m.node, m.offset + 1);
+  sel.removeAllRanges();
+  sel.addRange(matchRange);
+
+  // Flash the matched line and scroll into view
+  const matchLine = m.node.parentElement?.closest('.diff-line');
+  if (matchLine) {
+    matchLine.classList.add('bracket-flash');
+    matchLine.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => matchLine.classList.remove('bracket-flash'), 1000);
+  }
+}
+
+function attachBracketMatching() {
+  const dl = document.getElementById('diff-left');
+  const dr = document.getElementById('diff-right');
+  dl.addEventListener('click', e => handleBracketClick(dl, e));
+  dr.addEventListener('click', e => handleBracketClick(dr, e));
+}
+
+// ─── Theme ────────────────────────────────────────────────────────────────
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('hljs-theme').href = theme === 'light'
+    ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css'
+    : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css';
+  const btn = document.getElementById('theme-btn');
+  btn.textContent = theme === 'light' ? '🌙' : '☀';
+  btn.title = theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme';
+  localStorage.setItem('diffchecker-theme', theme);
+}
+
 // ─── Scroll sync ──────────────────────────────────────────────────────────
 
 function syncScroll(source, target) {
@@ -898,6 +1268,7 @@ const swapBtn      = document.getElementById('swap-btn');
 diffBtn.addEventListener('click', () => {
   const l = leftEditor.value, r = rightEditor.value;
   if (!l.trim() && !r.trim()) { alert('Please enter content in at least one panel.'); return; }
+  closeSearch();
 
   window._viewMode = 'full'; // reset to full on each new compare
   setViewMode('full');
@@ -966,6 +1337,15 @@ document.addEventListener('keydown', e => {
 });
 
 attachScrollSync();
+attachBracketMatching();
+attachSearch();
+
+// Theme init + toggle
+applyTheme(localStorage.getItem('diffchecker-theme') || 'dark');
+document.getElementById('theme-btn').addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+});
 
 // Re-render syntax highlighting when language changes without re-running the diff
 document.getElementById('lang-select').addEventListener('change', () => {

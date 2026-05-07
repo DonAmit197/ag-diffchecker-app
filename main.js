@@ -11,7 +11,7 @@ function createWindow() {
     height: 860,
     minWidth: 900,
     minHeight: 600,
-    title: 'DiffChecker',
+    title: 'AG DiffChecker',
     backgroundColor: '#0d0f14',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -178,6 +178,7 @@ function buildMenu() {
                 'Ctrl+Enter       Run Compare',
                 'Ctrl+N           New Comparison',
                 'Ctrl+Shift+S     Swap Panels',
+                'Ctrl+F           Find in Diff',
                 'Ctrl+1           Full File View',
                 'Ctrl+2           Changes Only View',
                 'F11              Toggle Fullscreen',
@@ -190,8 +191,8 @@ function buildMenu() {
           click() {
             dialog.showMessageBox(mainWindow, {
               type: 'info',
-              title: 'About DiffChecker',
-              message: 'DiffChecker v1.0.0',
+              title: 'About AG DiffChecker',
+              message: 'AG DiffChecker v1.0.1',
               detail: 'A fast, local, side-by-side diff tool.\n\nNo data ever leaves your machine.'
             });
           }

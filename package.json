@@ -1,6 +1,6 @@
 {
   "name": "ag-diffchecker",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A local side-by-side diff checker desktop app",
   "main": "main.js",
   "author": "You",
@@ -30,6 +30,9 @@
       "provider": "github",
       "owner": "DonAmit197",
       "repo": "ag-diffchecker-app"
+    },
+    "releaseInfo": {
+      "releaseNotes": "Syntax highlighting, light/dark theme, MOD badge, bracket matching, find in diff (Ctrl+F), AG DiffChecker branding"
     },
     "files": [
       "main.js",
